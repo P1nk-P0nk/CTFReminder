@@ -88,9 +88,13 @@ def tweet(data):
     api = initAPI()
     api.update_status(status=data)
 
+#Function emitting the tweet with the event logo
 def tweetWithImage(data, imageUrl):
+    
+    #name for the temporary file of the event logo
     filename = 'temp.png'
 
+    #requests the image and attempt to use it, if it exists
     request = get(imageUrl, stream=True)
     if request.status_code == 200:
         with open(filename, 'wb') as image:
@@ -110,7 +114,7 @@ def tweetWithImage(data, imageUrl):
     else:
         tweet(data)
 
-
+#Function searching for the organizer twitter account and returns its @
 def getOrganizerTwitterHandle(organizer):
     data = get("https://ctftime.org/team/" + str(organizer)).text
 
@@ -134,22 +138,26 @@ def getOrganizerTwitterHandle(organizer):
 
     return ret
 
-#Function emitting the brand new tweet to advertise for the newly published CTF
+#Function preprocessing the brand new tweet to advertise for the newly published CTF
 def tweetNew(event):
     print("Tweet new")
 
     start = event["start"].replace("T", " ")[:-6]+" UTC"
 
+    
     orgTwitter = getOrganizerTwitterHandle(event["organizers"][0]["id"])
 
+    #if organizer has a twitter account
     if orgTwitter != "":
         payload = NEW_CTF_TWITTER.format(event["title"], orgTwitter, start, event["ctftime_url"])
     else:
         payload = NEW_CTF.format(event["title"], start, event["ctftime_url"])
 
+    #if the formatted message is too long, remove additional informations
     if len(payload) > 140:
         payload = NEW_CTF.format(event["ctftime_url"], start, "")
 
+    #if the event as a logo, tweet with it
     if(event["logo"] != ""):
         tweetWithImage(payload, event["logo"])
     else:
