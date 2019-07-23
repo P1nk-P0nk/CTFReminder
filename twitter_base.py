@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from time import time
 from requests import get
@@ -32,7 +32,10 @@ REMIND_CTF_TWITTER = """{} organized by {} starts in under 24 hours!
 {}
 """
 
+#Function fetching CTF from timeStart to timeEnd
 def fetchCtfs(timeStart, timeEnd):
+
+    #get request parameters
     dataParameters = {
         "limit":"1000",
         "start":str(timeStart),
@@ -46,7 +49,7 @@ def fetchCtfs(timeStart, timeEnd):
 
     return eval(payload)
 
-
+#Function fetching all the CTFs events from CTFtime by calling the above function
 def fetchAll():
     currentTime = int(time())  #strip the milliseconds
     return (fetchCtfs(currentTime, currentTime + 1000000000))
@@ -131,7 +134,7 @@ def getOrganizerTwitterHandle(organizer):
 
     return ret
 
-
+#Function emitting the brand new tweet to advertise for the newly published CTF
 def tweetNew(event):
     print("Tweet new")
 

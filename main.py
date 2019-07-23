@@ -1,8 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from time import time
 from requests import get
-import tweepy
+import discord
 import dateutil.parser
 import os
 from bs4 import BeautifulSoup
