@@ -54,6 +54,7 @@ def fetchAll():
     currentTime = int(time())  #strip the milliseconds
     return (fetchCtfs(currentTime, currentTime + 1000000000))
 
+#initializes the twitter API handler with OAuth
 def initAPI():
     config = open(os.path.dirname(os.path.realpath(__file__))+"/config", "r").read().split("\n")
 
@@ -67,23 +68,26 @@ def initAPI():
 
     return tweepy.API(auth)
 
+#Function extracting data from files
 def readFrom(file):
     f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "rb")
     r = f.read()
     f.close()
     return eval(r)
 
+#Function writing data to files
 def writeTo(q, file):
     f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "wb")
     f.write(str(q))
     f.close()
 
+#Function appending data to a previously written file 
 def appendTo(q, file):
     tab = readFrom(file)
     tab.append(q)
     writeTo(tab, file)
 
-
+#emit a tweet containing the data parameter
 def tweet(data):
     api = initAPI()
     api.update_status(status=data)
@@ -164,6 +168,7 @@ def tweetNew(event):
         tweet(payload)
 
 
+#Function preprocessing the remind tweet 24 hours before the beginning of the event
 def tweetRemind(event):
     print("Tweet remind")
 
@@ -182,6 +187,7 @@ def tweetRemind(event):
     else:
         tweet(payload)
 
+#Fucntion checking if the ctf is in the list
 def ctfInList(ctf, list):
     for i in list:
         if i["ctf_id"] == ctf["ctf_id"]:
