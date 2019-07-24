@@ -2,7 +2,7 @@
 
 from time import time
 from requests import get
-import discord
+import tweepy
 import dateutil.parser
 import os
 from bs4 import BeautifulSoup
@@ -32,7 +32,10 @@ REMIND_CTF_TWITTER = """{} organized by {} starts in under 24 hours!
 {}
 """
 
+#Function fetching CTF from timeStart to timeEnd
 def fetchCtfs(timeStart, timeEnd):
+
+    #get request parameters
     dataParameters = {
         "limit":"1000",
         "start":str(timeStart),
@@ -46,11 +49,12 @@ def fetchCtfs(timeStart, timeEnd):
 
     return eval(payload)
 
-
+#Function fetching all the CTFs events from CTFtime by calling the above function
 def fetchAll():
     currentTime = int(time())  #strip the milliseconds
     return (fetchCtfs(currentTime, currentTime + 1000000000))
 
+#initializes the twitter API handler with OAuth
 def initAPI():
     config = open(os.path.dirname(os.path.realpath(__file__))+"/config", "r").read().split("\n")
 
@@ -64,30 +68,37 @@ def initAPI():
 
     return tweepy.API(auth)
 
+#Function extracting data from files
 def readFrom(file):
     f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "rb")
     r = f.read()
     f.close()
     return eval(r)
 
+#Function writing data to files
 def writeTo(q, file):
     f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "wb")
     f.write(str(q))
     f.close()
 
+#Function appending data to a previously written file 
 def appendTo(q, file):
     tab = readFrom(file)
     tab.append(q)
     writeTo(tab, file)
 
-
+#emit a tweet containing the data parameter
 def tweet(data):
     api = initAPI()
     api.update_status(status=data)
 
+#Function emitting the tweet with the event logo
 def tweetWithImage(data, imageUrl):
+    
+    #name for the temporary file of the event logo
     filename = 'temp.png'
 
+    #requests the image and attempt to use it, if it exists
     request = get(imageUrl, stream=True)
     if request.status_code == 200:
         with open(filename, 'wb') as image:
@@ -107,7 +118,7 @@ def tweetWithImage(data, imageUrl):
     else:
         tweet(data)
 
-
+#Function searching for the organizer twitter account and returns its @
 def getOrganizerTwitterHandle(organizer):
     data = get("https://ctftime.org/team/" + str(organizer)).text
 
@@ -131,28 +142,33 @@ def getOrganizerTwitterHandle(organizer):
 
     return ret
 
-
+#Function preprocessing the brand new tweet to advertise for the newly published CTF
 def tweetNew(event):
     print("Tweet new")
 
     start = event["start"].replace("T", " ")[:-6]+" UTC"
 
+    
     orgTwitter = getOrganizerTwitterHandle(event["organizers"][0]["id"])
 
+    #if organizer has a twitter account
     if orgTwitter != "":
         payload = NEW_CTF_TWITTER.format(event["title"], orgTwitter, start, event["ctftime_url"])
     else:
         payload = NEW_CTF.format(event["title"], start, event["ctftime_url"])
 
+    #if the formatted message is too long, remove additional informations
     if len(payload) > 140:
         payload = NEW_CTF.format(event["ctftime_url"], start, "")
 
+    #if the event as a logo, tweet with it
     if(event["logo"] != ""):
         tweetWithImage(payload, event["logo"])
     else:
         tweet(payload)
 
 
+#Function preprocessing the remind tweet 24 hours before the beginning of the event
 def tweetRemind(event):
     print("Tweet remind")
 
@@ -171,6 +187,7 @@ def tweetRemind(event):
     else:
         tweet(payload)
 
+#Fucntion checking if the ctf is in the list
 def ctfInList(ctf, list):
     for i in list:
         if i["ctf_id"] == ctf["ctf_id"]:
