@@ -2,10 +2,14 @@
 
 from time import time
 from requests import get
-import tweepy
+import discord
 import dateutil.parser
 import os
 from bs4 import BeautifulSoup
+
+from gensim.utils import deaccent
+
+DISCORD_API_TOKEN = 'NjAyNTQxOTYxOTkxMTU5ODE1.XTSapg.BfwYVVEkRemyStikE4LV26TqVTQ'
 
 CTFTIME_API_URL = "https://ctftime.org/api/v1/events/"
 
@@ -32,6 +36,8 @@ REMIND_CTF_TWITTER = """{} organized by {} starts in under 24 hours!
 {}
 """
 
+BOT_POSTING_CHANNELS = []
+
 #Function fetching CTF from timeStart to timeEnd
 def fetchCtfs(timeStart, timeEnd):
 
@@ -47,26 +53,31 @@ def fetchCtfs(timeStart, timeEnd):
     #u wot m8
     payload = r.text.replace("false", "False").replace("true", "True")
 
+    print(payload)
+
     return eval(payload)
 
 #Function fetching all the CTFs events from CTFtime by calling the above function
 def fetchAll():
+    print('Beginning fetching')
     currentTime = int(time())  #strip the milliseconds
+    print(currentTime)
+    print(currentTime + 1000000000)
     return (fetchCtfs(currentTime, currentTime + 1000000000))
 
-#initializes the twitter API handler with OAuth
-def initAPI():
-    config = open(os.path.dirname(os.path.realpath(__file__))+"/config", "r").read().split("\n")
+# #initializes the twitter API handler with OAuth
+# def initAPI():
+#     config = open(os.path.dirname(os.path.realpath(__file__))+"/config", "r").read().split("\n")
 
-    consumer_key = config[0]
-    consumer_secret = config[1]
-    access_token = config[2]
-    access_token_secret = config[3]
+#     consumer_key = config[0]
+#     consumer_secret = config[1]
+#     access_token = config[2]
+#     access_token_secret = config[3]
 
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
+#     auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+#     auth.set_access_token(access_token, access_token_secret)
 
-    return tweepy.API(auth)
+#     return tweepy.API(auth)
 
 #Function extracting data from files
 def readFrom(file):
@@ -87,10 +98,10 @@ def appendTo(q, file):
     tab.append(q)
     writeTo(tab, file)
 
-#emit a tweet containing the data parameter
-def tweet(data):
-    api = initAPI()
-    api.update_status(status=data)
+# #emit a tweet containing the data parameter
+# def tweet(data):
+#     api = initAPI()
+#     api.update_status(status=data)
 
 #Function emitting the tweet with the event logo
 def tweetWithImage(data, imageUrl):
@@ -105,18 +116,19 @@ def tweetWithImage(data, imageUrl):
             for chunk in request:
                 image.write(chunk)
 
-        api = initAPI()
+        #api = initAPI()
 
         try:
-            api.update_with_media(filename, status=data)
-        except tweepy.TweepError:
-            tweet(data)
+            #api.update_with_media(filename, status=data)
+            disc_msg(data,filename)
+        except client.on_error:
+            disc_msg(data)
 
         os.remove(filename)
 
     #coulnd't get the image, tough luck
     else:
-        tweet(data)
+        disc_msg(data)
 
 #Function searching for the organizer twitter account and returns its @
 def getOrganizerTwitterHandle(organizer):
@@ -165,7 +177,7 @@ def tweetNew(event):
     if(event["logo"] != ""):
         tweetWithImage(payload, event["logo"])
     else:
-        tweet(payload)
+        disc_msg(payload)
 
 
 #Function preprocessing the remind tweet 24 hours before the beginning of the event
@@ -185,23 +197,64 @@ def tweetRemind(event):
     if(event["logo"] != ""):
         tweetWithImage(payload, event["logo"])
     else:
-        tweet(payload)
+        disc_msg(payload)
 
-#Fucntion checking if the ctf is in the list
+#Function checking if the ctf is in the list
 def ctfInList(ctf, list):
     for i in list:
         if i["ctf_id"] == ctf["ctf_id"]:
             return True
     return False
 
+#Function sending messages on all the channels in the chans list
+def disc_msg(data, image = None):
+
+    for i in BOT_POSTING_CHANNELS :
+        if image != None : i.send(data, file= image )
+        else : i.send(data)
+
+#Function fetching all the general channels in the guilds the bot can access
+def fetch_chans():
+    for i in client.guilds:
+        for j in i.channels:
+            if  deaccent(j.name) == 'general':
+                BOT_POSTING_CHANNELS.append(j)
+
 #get current time in unix epoch
 currentTime = int(time())
 
-#tweeted once
+#initializing the discord client object for the bot and starting it
+client = discord.Client()
+
+print('Client created')
+
+#on ready handler for the bot instance
+@client.event
+async def on_ready():
+    try:
+        # print bot information
+        print('We have logged in as {0.user.name}'.format(client))
+        print('The client id is {0.user.id}'.format(client))
+        print('Discord.py Version: {}'.format(discord.__version__))
+        fetch_chans()
+        # for i in client.guilds :
+        # 	print(i.name)
+        # 	for j in i.channels :
+        # 		print(j.name)
+        # 		if deaccent(j.name) == "general" : print(j.id)
+	
+    except Exception as e:
+        print(e)
+
+client.start(DISCORD_API_TOKEN)
+print('Client started')
+
+#advertised once
 first = readFrom("first")
-#tweeted twice
+#advertised twice
 second = readFrom("second")
 
+#put the fetched ctf in a list to make it iterable
 justFetched = fetchAll()
 
 updates = 0
