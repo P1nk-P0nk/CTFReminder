@@ -8,8 +8,13 @@ import os
 from bs4 import BeautifulSoup
 
 from gensim.utils import deaccent
+from discord.ext import commands
+import pickle
+import asyncio
 
-DISCORD_API_TOKEN = 'NjAyNTQxOTYxOTkxMTU5ODE1.XTSapg.BfwYVVEkRemyStikE4LV26TqVTQ'
+
+DISCORD_API_TOKEN = None
+BOT_CHANNELS = {}
 
 CTFTIME_API_URL = "https://ctftime.org/api/v1/events/"
 
@@ -36,8 +41,6 @@ REMIND_CTF_TWITTER = """{} organized by {} starts in under 24 hours!
 {}
 """
 
-BOT_POSTING_CHANNELS = []
-
 #Function fetching CTF from timeStart to timeEnd
 def fetchCtfs(timeStart, timeEnd):
 
@@ -47,8 +50,20 @@ def fetchCtfs(timeStart, timeEnd):
         "start":str(timeStart),
         "finish":str(timeEnd),
     }
+    
+    header = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "fr,en-US;q=0.7,en;q=0.3",
+        "Connection": "keep-alive",
+        "DNT": "1",
+        "Host": "ctftime.org",
+        "TE": "Trailers",
+        "Upgrade-Insecure-Requests": "1",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0"
+    }
 
-    r = get(url=CTFTIME_API_URL, params=dataParameters)
+    r = get(url=CTFTIME_API_URL, headers=header, params=dataParameters)
 
     #u wot m8
     payload = r.text.replace("false", "False").replace("true", "True")
@@ -81,14 +96,14 @@ def fetchAll():
 
 #Function extracting data from files
 def readFrom(file):
-    f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "rb")
+    f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "r")
     r = f.read()
     f.close()
     return eval(r)
 
 #Function writing data to files
 def writeTo(q, file):
-    f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "wb")
+    f = open(os.path.dirname(os.path.realpath(__file__))+"/"+file, "w")
     f.write(str(q))
     f.close()
 
@@ -98,13 +113,8 @@ def appendTo(q, file):
     tab.append(q)
     writeTo(tab, file)
 
-# #emit a tweet containing the data parameter
-# def tweet(data):
-#     api = initAPI()
-#     api.update_status(status=data)
-
 #Function emitting the tweet with the event logo
-def tweetWithImage(data, imageUrl):
+async def tweetWithImage(data, imageUrl):
     
     #name for the temporary file of the event logo
     filename = 'temp.png'
@@ -116,19 +126,17 @@ def tweetWithImage(data, imageUrl):
             for chunk in request:
                 image.write(chunk)
 
-        #api = initAPI()
-
         try:
             #api.update_with_media(filename, status=data)
-            disc_msg(data,filename)
+            await disc_msg(data,filename)
         except client.on_error:
-            disc_msg(data)
+            await disc_msg(data)
 
         os.remove(filename)
 
     #coulnd't get the image, tough luck
     else:
-        disc_msg(data)
+        await disc_msg(data)
 
 #Function searching for the organizer twitter account and returns its @
 def getOrganizerTwitterHandle(organizer):
@@ -155,7 +163,7 @@ def getOrganizerTwitterHandle(organizer):
     return ret
 
 #Function preprocessing the brand new tweet to advertise for the newly published CTF
-def tweetNew(event):
+async def tweetNew(event):
     print("Tweet new")
 
     start = event["start"].replace("T", " ")[:-6]+" UTC"
@@ -175,13 +183,12 @@ def tweetNew(event):
 
     #if the event as a logo, tweet with it
     if(event["logo"] != ""):
-        tweetWithImage(payload, event["logo"])
+        await tweetWithImage(payload, event["logo"])
     else:
-        disc_msg(payload)
-
+        await disc_msg(payload)
 
 #Function preprocessing the remind tweet 24 hours before the beginning of the event
-def tweetRemind(event):
+async def tweetRemind(event):
     print("Tweet remind")
 
     orgTwitter = getOrganizerTwitterHandle(event["organizers"][0]["id"])
@@ -195,9 +202,9 @@ def tweetRemind(event):
         payload = REMIND_CTF.format(event["ctftime_url"], ":)")
 
     if(event["logo"] != ""):
-        tweetWithImage(payload, event["logo"])
+        await tweetWithImage(payload, event["logo"])
     else:
-        disc_msg(payload)
+        await disc_msg(payload)
 
 #Function checking if the ctf is in the list
 def ctfInList(ctf, list):
@@ -207,25 +214,31 @@ def ctfInList(ctf, list):
     return False
 
 #Function sending messages on all the channels in the chans list
-def disc_msg(data, image = None):
+async def disc_msg(data, image = None):
 
-    for i in BOT_POSTING_CHANNELS :
-        if image != None : i.send(data, file= image )
-        else : i.send(data)
-
-#Function fetching all the general channels in the guilds the bot can access
-def fetch_chans():
-    for i in client.guilds:
-        for j in i.channels:
-            if  deaccent(j.name) == 'general':
-                BOT_POSTING_CHANNELS.append(j)
+    for j in BOT_CHANNELS.values() :
+        i = client.get_channel(j)
+        if image != None : 
+            await i.send(data, file= image )
+        else : 
+            await i.send(data)
 
 #get current time in unix epoch
 currentTime = int(time())
 
-#initializing the discord client object for the bot and starting it
-client = discord.Client()
+try: 
+    DISCORD_API_TOKEN=open("./token",'r').readline().strip()
+except:
+    print("Couldn't load Discord API token.\nStopping.")
+    exit(-1)
 
+try:
+    BOT_CHANNELS=pickle.load(open("chans","rb"))
+except:
+    print("Couldn't load default channels.")
+
+#initializing the discord client object for the bot and starting it
+client = commands.Bot(command_prefix="!")
 print('Client created')
 
 #on ready handler for the bot instance
@@ -236,43 +249,59 @@ async def on_ready():
         print('We have logged in as {0.user.name}'.format(client))
         print('The client id is {0.user.id}'.format(client))
         print('Discord.py Version: {}'.format(discord.__version__))
-        fetch_chans()
-        # for i in client.guilds :
-        # 	print(i.name)
-        # 	for j in i.channels :
-        # 		print(j.name)
-        # 		if deaccent(j.name) == "general" : print(j.id)
+        await update()
 	
     except Exception as e:
         print(e)
 
-client.start(DISCORD_API_TOKEN)
-print('Client started')
+@client.command(name="set_channel",help="A command to set the default for posting messages.")
+@commands.is_owner()
+async def set_default_channel(ctx):
+    msg = "Default channel set !"
+    if ctx.channel.id in BOT_CHANNELS.values: msg = "Default channel modified !"
+    BOT_CHANNELS[ctx.guild.id] = ctx.channel.id
+    pickle.dump(open("chans",'wb'))
 
-#advertised once
-first = readFrom("first")
-#advertised twice
-second = readFrom("second")
+@client.event
+async def on_guild_join(guild):
+    for i in guild.channels:
+        if deaccent(i.name.lower()) == "general":
+            BOT_CHANNELS[guild.id] = i.id
+            pickle.dump(open("chans",'wb'))
 
-#put the fetched ctf in a list to make it iterable
-justFetched = fetchAll()
+async def update():
+    while(True):
+        await runtime()
+        await asyncio.sleep(UPDATE_TIME)
 
-updates = 0
+async def runtime():
+    #advertised once
+    first = readFrom("first")
+    #advertised twice
+    second = readFrom("second")
 
-for f in justFetched[::-1]:
+    #put the fetched ctf in a list to make it iterable
+    justFetched = fetchAll()
 
-    startTime = dateutil.parser.parse(f["start"])
+    updates = 0
 
-    startTimeEpoch = int(startTime.strftime("%s"))
-    #no need to think about ctfs for time travelers...
-    if startTimeEpoch > currentTime:
-        #we don't really care for onsite events
-        if not f["onsite"] and f["restrictions"] == "Open":
-            #brand new tweet
-            if not ctfInList(f, second) and not ctfInList(f, first):
-                tweetNew(f)
-                appendTo(f, "first")
 
-            if ctfInList(f, first) and not ctfInList(f, second) and (startTimeEpoch-currentTime)<DAY_TIMESTAMP:
-                tweetRemind(f)
-                appendTo(f, "second")
+    for f in justFetched[::-1]:
+
+        startTime = dateutil.parser.parse(f["start"])
+
+        startTimeEpoch = int(startTime.strftime("%s"))
+        #no need to think about ctfs for time travelers...
+        if startTimeEpoch > currentTime:
+            #we don't really care for onsite events
+            if not f["onsite"] and f["restrictions"] == "Open":
+                #brand new tweet
+                if not ctfInList(f, second) and not ctfInList(f, first):
+                    await tweetNew(f)
+                    appendTo(f, "first")
+
+                if ctfInList(f, first) and not ctfInList(f, second) and (startTimeEpoch-currentTime)<DAY_TIMESTAMP:
+                    await tweetRemind(f)
+                    appendTo(f, "second")
+
+client.run(DISCORD_API_TOKEN)
