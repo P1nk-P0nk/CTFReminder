@@ -68,31 +68,15 @@ def fetchCtfs(timeStart, timeEnd):
     #u wot m8
     payload = r.text.replace("false", "False").replace("true", "True")
 
-    print(payload)
+    # print(payload)
 
     return eval(payload)
 
 #Function fetching all the CTFs events from CTFtime by calling the above function
 def fetchAll():
-    print('Beginning fetching')
+    print('Beginning fetching...')
     currentTime = int(time())  #strip the milliseconds
-    print(currentTime)
-    print(currentTime + 1000000000)
     return (fetchCtfs(currentTime, currentTime + 1000000000))
-
-# #initializes the twitter API handler with OAuth
-# def initAPI():
-#     config = open(os.path.dirname(os.path.realpath(__file__))+"/config", "r").read().split("\n")
-
-#     consumer_key = config[0]
-#     consumer_secret = config[1]
-#     access_token = config[2]
-#     access_token_secret = config[3]
-
-#     auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-#     auth.set_access_token(access_token, access_token_secret)
-
-#     return tweepy.API(auth)
 
 #Function extracting data from files
 def readFrom(file):
@@ -258,16 +242,17 @@ async def on_ready():
 @commands.is_owner()
 async def set_default_channel(ctx):
     msg = "Default channel set !"
-    if ctx.channel.id in BOT_CHANNELS.values: msg = "Default channel modified !"
+    if ctx.channel.id in BOT_CHANNELS.values(): msg = "Default channel modified !"
     BOT_CHANNELS[ctx.guild.id] = ctx.channel.id
-    pickle.dump(open("chans",'wb'))
+    pickle.dump(BOT_CHANNELS,open("chans",'wb'))
+    await ctx.send(msg)
 
 @client.event
 async def on_guild_join(guild):
     for i in guild.channels:
         if deaccent(i.name.lower()) == "general":
             BOT_CHANNELS[guild.id] = i.id
-            pickle.dump(open("chans",'wb'))
+            pickle.dump(BOT_CHANNELS,open("chans",'wb'))
 
 async def update():
     while(True):
@@ -303,5 +288,7 @@ async def runtime():
                 if ctfInList(f, first) and not ctfInList(f, second) and (startTimeEpoch-currentTime)<DAY_TIMESTAMP:
                     await tweetRemind(f)
                     appendTo(f, "second")
+
+    print("Finished fetching and advertising.")
 
 client.run(DISCORD_API_TOKEN)
