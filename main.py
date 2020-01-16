@@ -262,13 +262,13 @@ async def on_guild_join(guild):
             BOT_CHANNELS[guild.id] = i.id
             pickle.dump(BOT_CHANNELS,open("chans",'wb'))
 
-#
+#relaunch runtime function every UPDATE_TIME
 async def update():
     while(True):
         await runtime()
         await asyncio.sleep(UPDATE_TIME)
 
-#
+#workflow used to fetch ctf and advertise them
 async def runtime():
     #advertised once
     first = readFrom("first")
@@ -301,4 +301,5 @@ async def runtime():
 
     print("Finished fetching and advertising.")
 
+#launch the discord bot
 client.run(DISCORD_API_TOKEN)
