@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+#base imports
 from time import time
 from requests import get
 import discord
@@ -7,22 +8,25 @@ import dateutil.parser
 import os
 from bs4 import BeautifulSoup
 
+#imports added along with discord portage
 from gensim.utils import deaccent
 from discord.ext import commands
 import pickle
 import asyncio
 
-
+#global vars (close to constants)
 DISCORD_API_TOKEN = None
 BOT_CHANNELS = {}
-
 CTFTIME_API_URL = "https://ctftime.org/api/v1/events/"
 
 #interval at which this script is called
 UPDATE_TIME = 5 * 60 #5 minutes
+
+#day duration in seconds
 DAY_TIMESTAMP = 60 * 60 * 24 #24 hours
 
 
+#premade messages
 NEW_CTF = """New CTF!
 {}, starts at {}
 {}
@@ -210,12 +214,14 @@ async def disc_msg(data, image = None):
 #get current time in unix epoch
 currentTime = int(time())
 
+#load discord api token, stop the program if unable to load token file
 try: 
     DISCORD_API_TOKEN=open("./token",'r').readline().strip()
 except:
     print("Couldn't load Discord API token.\nStopping.")
     exit(-1)
 
+#load default channels list, no big deal if unable to load it
 try:
     BOT_CHANNELS=pickle.load(open("chans","rb"))
 except:
@@ -238,6 +244,7 @@ async def on_ready():
     except Exception as e:
         print(e)
 
+#set_channel command handler, reachable only by server owner
 @client.command(name="set_channel",help="A command to set the default for posting messages.")
 @commands.is_owner()
 async def set_default_channel(ctx):
@@ -247,6 +254,7 @@ async def set_default_channel(ctx):
     pickle.dump(BOT_CHANNELS,open("chans",'wb'))
     await ctx.send(msg)
 
+#on_guild_join handler, selecting general channel as default channel for posting advertisements
 @client.event
 async def on_guild_join(guild):
     for i in guild.channels:
@@ -254,11 +262,13 @@ async def on_guild_join(guild):
             BOT_CHANNELS[guild.id] = i.id
             pickle.dump(BOT_CHANNELS,open("chans",'wb'))
 
+#
 async def update():
     while(True):
         await runtime()
         await asyncio.sleep(UPDATE_TIME)
 
+#
 async def runtime():
     #advertised once
     first = readFrom("first")
