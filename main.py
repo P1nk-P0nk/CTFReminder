@@ -13,10 +13,13 @@ from gensim.utils import deaccent
 from discord.ext import commands
 import pickle
 import asyncio
+import inspect
 
 #global vars (close to constants)
 DISCORD_API_TOKEN = None
 BOT_CHANNELS = {}
+GUILDS_NEW = {}
+GUILDS_REMINDER = {}
 CTFTIME_API_URL = "https://ctftime.org/api/v1/events/"
 
 #interval at which this script is called
@@ -204,8 +207,12 @@ def ctfInList(ctf, list):
 #Function sending messages on all the channels in the chans list
 async def disc_msg(data, image = None):
 
+    print(inspect.stack()[2].function)
+
     for j in BOT_CHANNELS.values() :
         i = client.get_channel(j)
+        # if :
+        #    break 
         if image != None : 
             await i.send(data, file= image )
         else : 
@@ -246,13 +253,32 @@ async def on_ready():
 
 #set_channel command handler, reachable only by server owner
 @client.command(name="set_channel",help="A command to set the default for posting messages.")
-@commands.is_owner()
+# @commands.check_any(commands.is_owner(),  commands.has_guild_permissions(administrator = True))
+@commands.has_permissions(administrator = True)
 async def set_default_channel(ctx):
     msg = "Default channel set !"
     if ctx.channel.id in BOT_CHANNELS.values(): msg = "Default channel modified !"
     BOT_CHANNELS[ctx.guild.id] = ctx.channel.id
     pickle.dump(BOT_CHANNELS,open("chans",'wb'))
     await ctx.send(msg)
+
+@client.command(name ="toggle_remind",help="Toggles posting for soon-starting ctfs")
+async def remind(ctx):
+    if ctx.guild.id in GUILDS_REMINDER:
+        GUILDS_REMINDER.pop(ctx.guild.id)
+        pickle.dump(GUILDS_REMINDER,open("reminder",'wb'))
+    else:
+        GUILDS_REMINDER[ctx.guild.id] = False
+        pickle.dump(GUILDS_REMINDER,open("reminder",'wb'))
+
+@client.command(name ="toggle_new",help="Toggles posting for new ctfs")
+async def new_ctf(ctx):
+    if ctx.guild.id in GUILDS_NEW:
+        GUILDS_NEW.pop(ctx.guild.id)
+        pickle.dump(GUILDS_NEW,open("new",'wb'))
+    else:
+        GUILDS_NEW[ctx.guild.id] = False
+        pickle.dump(GUILDS_NEW,open("new",'wb'))
 
 #on_guild_join handler, selecting general channel as default channel for posting advertisements
 @client.event
