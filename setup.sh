@@ -48,6 +48,6 @@ if [[ $choice == "n" ]]
 then
     exit
 else 
-    ./main.py &
+    ./main.py>journal.log &
 fi
 echo "Done."
