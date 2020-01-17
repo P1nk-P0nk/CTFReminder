@@ -8,7 +8,7 @@ echo "Checking Python installation..."
 version=$(python -V 2>&1 | grep -Po '(?<=Python )(.+)')
 if [[ -z "$version" ]]
 then
-    echo -e "\e[31mPython is not installed.\e[0m"
+    echo -e "\e[31mPython is not installed. Please install Python 3.7 or newer.\e[0m"
     exit
 fi
 parsedVersion=$(echo "${version//./}")
@@ -35,8 +35,10 @@ echo "Done."
 echo "Creating new files..."
 if [[! -e first ]] then echo [] > first; fi
 if [[! -e second ]] then echo [] > second; fi
-if [[! -e chans ]] then touch chans; fi
 if [[! -e token ]] then touch token; fi
+if [[! -e chans ]] then touch chans; fi
+if [[! -e new ]] then touch new; fi
+if [[! -e reminder ]] then touch reminder; fi
 echo "Done."
 
 # Launching option

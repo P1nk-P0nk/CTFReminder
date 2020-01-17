@@ -223,16 +223,23 @@ currentTime = int(time())
 
 #load discord api token, stop the program if unable to load token file
 try: 
-    DISCORD_API_TOKEN=open("./token",'r').readline().strip()
+    DISCORD_API_TOKEN=open(os.path.dirname(os.path.realpath(__file__))+"/"+"token",'r').readline().strip()
 except:
     print("Couldn't load Discord API token.\nStopping.")
     exit(-1)
 
 #load default channels list, no big deal if unable to load it
 try:
-    BOT_CHANNELS=pickle.load(open("chans","rb"))
+    BOT_CHANNELS=pickle.load(open(os.path.dirname(os.path.realpath(__file__))+"/"+"chans","rb"))
 except:
     print("Couldn't load default channels.")
+
+#load default prefs list, no big deal if unable to load it
+try:
+    GUILDS_NEW=pickle.load(open(os.path.dirname(os.path.realpath(__file__))+"/"+"new","rb"))
+    GUILDS_REMINDER=pickle.load(open(os.path.dirname(os.path.realpath(__file__))+"/"+"reminder","rb"))
+except:
+    print("Couldn't load default prefs.")
 
 #initializing the discord client object for the bot and starting it
 client = commands.Bot(command_prefix="!")
@@ -259,26 +266,34 @@ async def set_default_channel(ctx):
     msg = "Default channel set !"
     if ctx.channel.id in BOT_CHANNELS.values(): msg = "Default channel modified !"
     BOT_CHANNELS[ctx.guild.id] = ctx.channel.id
-    pickle.dump(BOT_CHANNELS,open("chans",'wb'))
+    pickle.dump(BOT_CHANNELS,open(os.path.dirname(os.path.realpath(__file__))+"/"+"chans",'wb'))
     await ctx.send(msg)
 
 @client.command(name ="toggle_remind",help="Toggles posting for soon-starting ctfs")
 async def remind(ctx):
+    msg = None
     if ctx.guild.id in GUILDS_REMINDER:
         GUILDS_REMINDER.pop(ctx.guild.id)
-        pickle.dump(GUILDS_REMINDER,open("reminder",'wb'))
+        pickle.dump(GUILDS_REMINDER,open(os.path.dirname(os.path.realpath(__file__))+"/"+"reminder",'wb'))
+        msg ="Reminding enabled"
     else:
         GUILDS_REMINDER[ctx.guild.id] = False
-        pickle.dump(GUILDS_REMINDER,open("reminder",'wb'))
+        pickle.dump(GUILDS_REMINDER,open(os.path.dirname(os.path.realpath(__file__))+"/"+"reminder",'wb'))
+        msg ="Reminding disabled"
+    await ctx.send(msg)
 
 @client.command(name ="toggle_new",help="Toggles posting for new ctfs")
 async def new_ctf(ctx):
+    msg = None
     if ctx.guild.id in GUILDS_NEW:
         GUILDS_NEW.pop(ctx.guild.id)
-        pickle.dump(GUILDS_NEW,open("new",'wb'))
+        pickle.dump(GUILDS_NEW,open(os.path.dirname(os.path.realpath(__file__))+"/"+"new",'wb'))
+        msg ="Posting new ctf enabled"
     else:
         GUILDS_NEW[ctx.guild.id] = False
-        pickle.dump(GUILDS_NEW,open("new",'wb'))
+        pickle.dump(GUILDS_NEW,open(os.path.dirname(os.path.realpath(__file__))+"/"+"new",'wb'))
+        msg ="Posting new ctf disabled"
+    await ctx.send(msg)
 
 #on_guild_join handler, selecting general channel as default channel for posting advertisements
 @client.event
@@ -286,7 +301,7 @@ async def on_guild_join(guild):
     for i in guild.channels:
         if deaccent(i.name.lower()) == "general":
             BOT_CHANNELS[guild.id] = i.id
-            pickle.dump(BOT_CHANNELS,open("chans",'wb'))
+            pickle.dump(BOT_CHANNELS,open(os.path.dirname(os.path.realpath(__file__))+"/"+"chans",'wb'))
 
 #relaunch runtime function every UPDATE_TIME
 async def update():
