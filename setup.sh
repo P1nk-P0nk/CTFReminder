@@ -20,7 +20,7 @@ else
     exit
 fi
 
-pi_ver =$(pip -V 2>&1 | grep -Po '(?<=pip )(\d+\.)?(\d+\.)?(\*|\d+)')
+pi_ver=$(pip -V 2>&1 | grep -Po '(?<=pip )(\d+\.)?(\d+\.)?(\*|\d+)')
 if [[ -z "$pi_ver" ]]
 then
     echo -e "\e[31mPip not installed. Please install pip for python 3.\e[0m"
@@ -33,12 +33,30 @@ echo "Done."
 
 # Creating additionnal files for the bot to run
 echo "Creating new files..."
-if [[! -e first ]] then echo [] > first; fi
-if [[! -e second ]] then echo [] > second; fi
-if [[! -e token ]] then touch token; fi
-if [[! -e chans ]] then touch chans; fi
-if [[! -e new ]] then touch new; fi
-if [[! -e reminder ]] then touch reminder; fi
+if [[ ! -e first ]]
+then 
+    echo [] > first 
+fi
+if [[ ! -e second ]]
+then 
+    echo [] > second
+fi
+if [[ ! -e token ]]
+then
+    touch token
+fi
+if [[ ! -e chans ]]
+then
+    touch chans
+fi
+if [[ ! -e new ]]
+then 
+    touch new
+fi
+if [[ ! -e reminder ]]
+then 
+    touch reminder
+fi
 echo "Done."
 
 # Launching option
