@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 #imports added along with discord portage
 from gensim.utils import deaccent
-from discord.ext import commands
+from discord.ext import tasks,commands
 import pickle
 import asyncio
 import inspect
@@ -157,6 +157,9 @@ def getOrganizerTwitterHandle(organizer):
 async def tweetNew(event):
     print("Tweet new")
 
+    await disc_msg("kek")
+    return
+
     start = event["start"].replace("T", " ")[:-6]+" UTC"
 
     
@@ -205,18 +208,69 @@ def ctfInList(ctf, list):
     return False
 
 #Function sending messages on all the channels in the chans list
-async def disc_msg(data, image = None):
+async def disc_msg(data, filename = None):
 
-    print(inspect.stack()[2].function)
-
-    for j in BOT_CHANNELS.values() :
+    call1 = inspect.stack()[1].function
+    call2 = inspect.stack()[2].function
+    
+    for x,j in BOT_CHANNELS.items() :
         i = client.get_channel(j)
-        # if :
-        #    break 
-        if image != None : 
+        if ((call1 == "tweetNew" or call2 == "tweetNew") and GUILDS_NEW[x]) or ((call1 == "tweetRemind" or call2 == "tweetRemind") and GUILDS_REMINDER[x]) :
+            break 
+        elif if image != None : 
+            f = open(filename,"rb")
             await i.send(data, file= image )
         else : 
             await i.send(data)
+
+class CTF(commands.Cog):
+    def __init__(self,bot):
+        self.bot = bot
+        self.fetcher.start()
+
+    def cog_unload(self):
+        self.printer.cancel()
+
+    #relaunch runtime function every UPDATE_TIME
+    @tasks.loop(seconds=UPDATE_TIME)
+    async def fetcher(self):
+        #workflow used to fetch ctf and advertise them
+
+        #advertised once
+        first = readFrom("first")
+        #advertised twice
+        second = readFrom("second")
+
+        #put the fetched ctf in a list to make it iterable
+        justFetched = fetchAll()
+
+        updates = 0
+
+
+        for f in justFetched[::-1]:
+
+            startTime = dateutil.parser.parse(f["start"])
+
+            startTimeEpoch = int(startTime.strftime("%s"))
+            #no need to think about ctfs for time travelers...
+            if startTimeEpoch > currentTime:
+                #we don't really care for onsite events
+                if not f["onsite"] and f["restrictions"] == "Open":
+                    #brand new tweet
+                    if not ctfInList(f, second) and not ctfInList(f, first):
+                        await tweetNew(f)
+                        appendTo(f, "first")
+
+                    if ctfInList(f, first) and not ctfInList(f, second) and (startTimeEpoch-currentTime)<DAY_TIMESTAMP:
+                        await tweetRemind(f)
+                        appendTo(f, "second")
+
+        print("Finished fetching and advertising.")
+
+    @fetcher.before_loop
+    async def before_fetcher(self):
+        print('waiting...')
+        await self.bot.wait_until_ready()
 
 #get current time in unix epoch
 currentTime = int(time())
@@ -241,7 +295,7 @@ try:
 except:
     print("Couldn't load default prefs.")
 
-#initializing the discord client object for the bot and starting it
+#initializing the discord client object for the bot with the command prefix
 client = commands.Bot(command_prefix="!")
 print('Client created')
 
@@ -253,7 +307,7 @@ async def on_ready():
         print('We have logged in as {0.user.name}'.format(client))
         print('The client id is {0.user.id}'.format(client))
         print('Discord.py Version: {}'.format(discord.__version__))
-        await update()
+        # await update()
 	
     except Exception as e:
         print(e)
@@ -277,7 +331,7 @@ async def remind(ctx):
         pickle.dump(GUILDS_REMINDER,open(os.path.dirname(os.path.realpath(__file__))+"/"+"reminder",'wb'))
         msg ="Reminding enabled"
     else:
-        GUILDS_REMINDER[ctx.guild.id] = False
+        GUILDS_REMINDER[ctx.guild.id] = True
         pickle.dump(GUILDS_REMINDER,open(os.path.dirname(os.path.realpath(__file__))+"/"+"reminder",'wb'))
         msg ="Reminding disabled"
     await ctx.send(msg)
@@ -303,44 +357,8 @@ async def on_guild_join(guild):
             BOT_CHANNELS[guild.id] = i.id
             pickle.dump(BOT_CHANNELS,open(os.path.dirname(os.path.realpath(__file__))+"/"+"chans",'wb'))
 
-#relaunch runtime function every UPDATE_TIME
-async def update():
-    while(True):
-        await runtime()
-        await asyncio.sleep(UPDATE_TIME)
+#add the CTF cog to run the background task fetching ctf
+client.add_cog(CTF(client))
 
-#workflow used to fetch ctf and advertise them
-async def runtime():
-    #advertised once
-    first = readFrom("first")
-    #advertised twice
-    second = readFrom("second")
-
-    #put the fetched ctf in a list to make it iterable
-    justFetched = fetchAll()
-
-    updates = 0
-
-
-    for f in justFetched[::-1]:
-
-        startTime = dateutil.parser.parse(f["start"])
-
-        startTimeEpoch = int(startTime.strftime("%s"))
-        #no need to think about ctfs for time travelers...
-        if startTimeEpoch > currentTime:
-            #we don't really care for onsite events
-            if not f["onsite"] and f["restrictions"] == "Open":
-                #brand new tweet
-                if not ctfInList(f, second) and not ctfInList(f, first):
-                    await tweetNew(f)
-                    appendTo(f, "first")
-
-                if ctfInList(f, first) and not ctfInList(f, second) and (startTimeEpoch-currentTime)<DAY_TIMESTAMP:
-                    await tweetRemind(f)
-                    appendTo(f, "second")
-
-    print("Finished fetching and advertising.")
-
-#launch the discord bot
+#launch the dscord bot
 client.run(DISCORD_API_TOKEN)
