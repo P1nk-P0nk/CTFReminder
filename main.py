@@ -217,7 +217,7 @@ async def disc_msg(data, filename = None):
         i = client.get_channel(j)
         if ((call1 == "tweetNew" or call2 == "tweetNew") and GUILDS_NEW[x]) or ((call1 == "tweetRemind" or call2 == "tweetRemind") and GUILDS_REMINDER[x]) :
             break 
-        elif if image != None : 
+        elif image != None : 
             f = open(filename,"rb")
             await i.send(data, file= image )
         else : 
@@ -314,8 +314,7 @@ async def on_ready():
 
 #set_channel command handler, reachable only by server owner
 @client.command(name="set_channel",help="A command to set the default for posting messages.")
-# @commands.check_any(commands.is_owner(),  commands.has_guild_permissions(administrator = True))
-@commands.has_permissions(administrator = True)
+@commands.check_any(commands.is_owner(),  commands.has_guild_permissions(administrator = True))
 async def set_default_channel(ctx):
     msg = "Default channel set !"
     if ctx.channel.id in BOT_CHANNELS.values(): msg = "Default channel modified !"
