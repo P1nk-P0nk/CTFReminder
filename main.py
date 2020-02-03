@@ -103,7 +103,7 @@ async def tweet_text(status: str) -> None:
 async def tweet_text_image(status: str, image_url: str) -> None:
     if config.PRODUCTION:
 
-        with tempfile.NamedTemporaryFile() as image_path:
+        with tempfile.NamedTemporaryFile(suffix= ".png") as image_path:
             if await fetch_image(image_url, image_path.name):
                 await disc_msg(status, image_path.name)
             else:
@@ -182,7 +182,7 @@ async def disc_msg(data, filename = None):
             break 
         elif filename != None :
             log.info("Sending msg")
-            f = discord.File(open(filename,"rb"))
+            f = discord.File(filename)
             await i.send(content= data, file= f )
         else :
             log.info("Sending msg")
