@@ -94,3 +94,6 @@ token
 chans
 reminder
 new
+config.py
+ctfreminder.log
+ctfreminder.json
