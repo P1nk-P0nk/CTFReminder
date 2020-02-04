@@ -103,6 +103,7 @@ async def tweet_new_ctf(event: Dict[str, Any]) -> None:
     timestamp = event_start.isoformat()
 
     # payload = NEW_CTF.format(title=title, start=start, url=ctftime_url)
+    payload = None
     payload = copy.copy(CTF_NEW)
     payload["author"]["name"] = organizers
     payload["author"]["url"] = payload["author"]["url"].format(org_id=org_id)
@@ -112,6 +113,8 @@ async def tweet_new_ctf(event: Dict[str, Any]) -> None:
 
     if logo_url:
         payload["author"]["icon_url"] = logo_url
+    else :
+        payload["author"]["icon_url"] = None
 
     embed = discord.Embed().from_dict(payload)
     await tweet_text(status=embed)
@@ -131,7 +134,7 @@ async def tweet_ctf_reminder(event: Dict[str, Any]) -> None:
     event_start = dateutil.parser.parse(event["start"])
     timestamp = event_start.isoformat()
 
-    # payload = REMIND_CTF.format(title=title, url=ctftime_url)
+    payload = None
     payload = copy.copy(CTF_REMIND)
     payload["author"]["name"] = organizers
     payload["author"]["url"] = payload["author"]["url"].format(org_id=org_id)
@@ -141,6 +144,8 @@ async def tweet_ctf_reminder(event: Dict[str, Any]) -> None:
 
     if logo_url:
         payload["author"]["icon_url"] = logo_url
+    else :
+        payload["author"]["icon_url"] = None
 
     embed = discord.Embed().from_dict(payload)
     await tweet_text(status=embed)
