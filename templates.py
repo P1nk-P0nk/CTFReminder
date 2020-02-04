@@ -1,14 +1,47 @@
 # premade messages
-NEW_CTF = """New CTF!
-{title}, starts at {start}
-{url}"""
 
-NEW_CTF_TWITTER = """New CTF!
-{title} organized by {organiser}, starts at {start}
-{url}"""
+CTF_NEW = {
+    "title" : "New CTF !",
+    "color": 16711757,
+    "author": {
+        "name" : "",
+        "url" : "https://ctftime.org/team/{org_id}"
+    },
+    "description": """**[{title}]({ctf_url})** starts {start}
+    [CTFTime]({url})""",
+    "footer":{
+        "text" : "Look at the timestamp for your local starting time !" 
+    },
+    "fields":[
+        {
+            "name" : "Format",
+            "value" : ""
+        }
 
-REMIND_CTF = """{title} starts in under 24 hours!
-{url}"""
+    ],
+    "timestamp" : ""
+    
+}
 
-REMIND_CTF_TWITTER = """{title} organized by {organiser} starts in under 24 hours!
-{url}"""
+CTF_REMIND = {
+    "title" : "New CTF !",
+    "color": 16711757,
+    "author": {
+        "name" : "",
+        "url" : "https://ctftime.org/team/{org_id}"
+    },
+    "description": """**[{title}]({ctf_url})** starts in **under 24 hours** !
+    [CTFTime]({url})""",
+    "footer":{
+        "text" : "Look at the timestamp for your local starting time !" 
+    },
+    "fields":[
+        {
+            "name" : "Format",
+            "value" : ""
+        }
+
+    ],
+    "timestamp" : ""
+    
+}

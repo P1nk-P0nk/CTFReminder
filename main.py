@@ -11,7 +11,7 @@ import config
 import pytz
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
-from templates import NEW_CTF, NEW_CTF_TWITTER, REMIND_CTF, REMIND_CTF_TWITTER
+from templates import CTF_NEW, CTF_REMIND
 
 #imports added along with discord portage
 import discord
@@ -21,6 +21,7 @@ import pickle
 import asyncio
 import inspect
 import logging
+import copy
 
 # Setting the log level for the current program
 log = logging.getLogger(__file__)
@@ -77,19 +78,6 @@ def fetch_all_ctfs():
     currentTime = int(time())  #strip the milliseconds
     return (fetch_ctfs(currentTime, currentTime + YEAR_SECONDS))
 
-
-#Function fetching the image for the message
-async def fetch_image(url: str, save_path: str) -> bool:
-    r = get(url, stream=True, headers=HEADERS)
-    if r.status_code != 200:
-        log.error("Couldn't get the image from %s, returned %d", url, r.status_code)
-        return False
-    
-    with open(save_path, 'wb') as f:
-        for chunk in r:
-            f.write(chunk)
-    return True
-
 #Function sending messages
 async def tweet_text(status: str) -> None:
     if config.PRODUCTION:
@@ -99,53 +87,64 @@ async def tweet_text(status: str) -> None:
         print(status)
         print("")
 
-#Function emitting the tweet with the event logo
-async def tweet_text_image(status: str, image_url: str) -> None:
-    if config.PRODUCTION:
-
-        with tempfile.NamedTemporaryFile(suffix= ".png") as image_path:
-            if await fetch_image(image_url, image_path.name):
-                await disc_msg(status, image_path.name)
-            else:
-                await disc_msg(status)
-    else:
-        print("TWEET WITH IMAGE:")
-        print(status)
-        print(image_url)
-        print("")
-
-
 #Function preprocessing the brand new tweet to advertise for the newly published CTF
 async def tweet_new_ctf(event: Dict[str, Any]) -> None:
     title = event["title"]
+    organizers = event["organizers"][0]["name"]
+    org_id = event["organizers"][0]["id"]
     ctftime_url = event["ctftime_url"]
+    ctf_format = event["format"]
+    url = event["url"]
     logo_url = event["logo"]
+
     log.info("Tweeting about a new ctf: %s", title)
 
     event_start = dateutil.parser.parse(event["start"])
-    start = event_start.strftime("%Y-%m-%d %H:%M:%S UTC")
+    start = event_start.strftime("on %Y-%m-%d at %H:%M:%S UTC")
+    timestamp = event_start.isoformat()
 
-    payload = NEW_CTF.format(title=title, start=start, url=ctftime_url)
+    # payload = NEW_CTF.format(title=title, start=start, url=ctftime_url)
+    payload = copy.copy(CTF_NEW)
+    payload["author"]["name"] = organizers
+    payload["author"]["url"] = payload["author"]["url"].format(org_id=org_id)
+    payload["fields"][0]["value"] = ctf_format
+    payload["timestamp"] = timestamp
+    payload["description"] = payload["description"].format(title=title,start=start,url=ctftime_url,ctf_url=url)
 
     if logo_url:
-        await tweet_text_image(status=payload, image_url=logo_url)
-    else:
-        await tweet_text(status=payload)
+        payload["author"]["icon_url"] = logo_url
+
+    embed = discord.Embed().from_dict(payload)
+    await tweet_text(status=embed)
 
 #Function preprocessing the remind tweet 24 hours before the beginning of the event
 async def tweet_ctf_reminder(event: Dict[str, Any]) -> None:
     title = event["title"]
+    organizers = event["organizers"][0]["name"]
+    org_id = event["organizers"][0]["id"]
     ctftime_url = event["ctftime_url"]
+    ctf_format = event["format"]
+    url = event["url"]
     logo_url = event["logo"]
 
     log.info("Tweeting a reminder about a ctf: %s", title)
 
-    payload = REMIND_CTF.format(title=title, url=ctftime_url)
+    event_start = dateutil.parser.parse(event["start"])
+    timestamp = event_start.isoformat()
+
+    # payload = REMIND_CTF.format(title=title, url=ctftime_url)
+    payload = copy.copy(CTF_REMIND)
+    payload["author"]["name"] = organizers
+    payload["author"]["url"] = payload["author"]["url"].format(org_id=org_id)
+    payload["fields"][0]["value"] = ctf_format
+    payload["timestamp"] = timestamp
+    payload["description"] = payload["description"].format(title=title,url=ctftime_url,ctf_url=url)
 
     if logo_url:
-        await tweet_text_image(payload, logo_url)
-    else:
-        await tweet_text(payload)
+        payload["author"]["icon_url"] = logo_url
+
+    embed = discord.Embed().from_dict(payload)
+    await tweet_text(status=embed)
 
 #Function used to read the events local database
 def read_database() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -173,20 +172,16 @@ async def disc_msg(data, filename = None):
     call1 = inspect.stack()[1].function
     call2 = inspect.stack()[2].function
     newer = (call1 == "tweet_new_ctf" or call2 == "tweet_new_ctf")
-    reminderer = (call1 == "tweetRemind" or call2 == "tweetRemind")
+    reminderer = (call1 == "tweet_ctf_reminder" or call2 == "tweet_ctf_reminder")
 
     for x,j in BOT_CHANNELS.items() :
         i = client.get_channel(j)
         if ( newer and x in GUILDS_NEW) or ( reminderer and x in GUILDS_REMINDER):
             log.info("Message disabled")
-            break 
-        elif filename != None :
-            log.info("Sending msg")
-            f = discord.File(filename)
-            await i.send(content= data, file= f )
+            break
         else :
             log.info("Sending msg")
-            await i.send(content= data)
+            await i.send(embed= data)
 
 class CTF(commands.Cog):
     def __init__(self,bot):
