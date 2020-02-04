@@ -6,7 +6,6 @@ from requests import get
 import dateutil.parser
 import os
 import json
-import tempfile
 import config
 import pytz
 from datetime import datetime, timedelta
